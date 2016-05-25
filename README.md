@@ -39,5 +39,3 @@ Contributions are welcome.
 Future plans for development:
 * Better error handling
 * Add other market data providers (currently, Yahoo Finance is queried)
-
-License: GNU GPLv3
