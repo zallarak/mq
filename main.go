@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"text/tabwriter"
 )
 
 type symbols []string
@@ -101,23 +102,26 @@ func main() {
 		info := <-ch
 		stocks[info.symbol] = info
 	}
-
-	fmt.Println("         |Price     |% Change today")
-	for sym, info := range stocks {
-		printStock(sym, info)
-	}
+	fmt.Println("")
+	printStocks(stocks)
+	fmt.Println("")
 }
 
-func printStock(sym string, i StockInfo) {
-	start := "\033[32m+"
-
-	if i.changePerc < 0.0 {
-		start = "\033[31m"
-	} else {
-
+func printStocks(stocks map[string]StockInfo) {
+	const headerFmt = "%v\t%v\t%v\t\n"
+	const rowFmt = "%s\t%.2f\t%s%.2f%%%s\t\n"
+	const colorEnd = "\033[0m"
+	tw := new(tabwriter.Writer).Init(os.Stdout, 0, 8, 2, ' ', 0)
+	fmt.Fprintf(tw, headerFmt, "Symbol", "Price ($)", "Change today (%)")
+	fmt.Fprintf(tw, headerFmt, "------", "---------", "----------------")
+	for sym, info := range stocks {
+		colorStart := "\033[32m+"
+		if info.changePerc < 0.0 {
+			colorStart = "\033[31m"
+		}
+		fmt.Fprintf(tw, rowFmt, sym, info.price, colorStart, info.changePerc, colorEnd)
 	}
-	fmt.Printf("%-9s|%-10.2f|%s%.2f%%\033[0m\n", sym, i.price, start, i.changePerc)
-	// fmt.Printf("|%-6.2f|%-6.2f|\n", 1.2, 3.45)
+	tw.Flush()
 }
 
 func getUrl(sym string) string {
