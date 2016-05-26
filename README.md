@@ -7,11 +7,15 @@
 mq is a command line tool for getting market quotes
 
 ```sh
-$ mq -s GOOG,AMZN,BTC
-         |Price     |% Change today
-GOOG     |718.07    |+1.96%
-AMZN     |706.36    |+1.38%
-BTCUSD=X |445.00    |+0.23%
+$ mq -s GOOG,TSLA,BTC,AAPL
+
+Symbol    Price ($)  Change today (%)  
+------    ---------  ----------------  
+GOOG      724.12     -0.16%   
+AAPL      100.41     +0.79%   
+TSLA      225.12     +2.52%   
+BTCUSD=X  452.05     +0.90%   
+
 ```
 
 ### Installation
