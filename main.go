@@ -8,8 +8,11 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"sort"
 	"strings"
 	"text/tabwriter"
+
+	"github.com/zallarak/mq/providers"
 )
 
 type symbols []string
@@ -20,30 +23,18 @@ type StockInfo struct {
 	symbol     string
 }
 
-type JsonResp struct {
-	List JsonRespList
+type StockInfoSlice []StockInfo
+
+func (s StockInfoSlice) Len() int {
+	return len(s)
 }
 
-type JsonRespMeta struct {
-	Count int
+func (s StockInfoSlice) Less(i, j int) bool {
+	return s[i].symbol < s[j].symbol
 }
 
-type JsonRespList struct {
-	Resources []JsonRespResourceCont
-	Meta      JsonRespMeta
-}
-
-type JsonRespResourceCont struct {
-	Resource JsonRespResource
-}
-
-type JsonRespResource struct {
-	Fields JsonRespFields
-}
-
-type JsonRespFields struct {
-	Price       float64 `json:",string"`
-	Chg_percent float64 `json:",string"`
+func (s StockInfoSlice) Swap(i, j int) {
+	s[i], s[j] = s[j], s[i]
 }
 
 func (s *symbols) String() string {
@@ -56,13 +47,6 @@ func (s *symbols) Set(value string) error {
 		return errors.New("symbols value already set")
 	}
 	for _, sym := range strings.Split(value, ",") {
-
-		sym = strings.ToUpper(sym)
-
-		if sym == "BTC" {
-			sym = "BTCUSD=X"
-		}
-
 		*s = append(*s, sym)
 	}
 	return nil
@@ -74,7 +58,7 @@ var verboseFlag bool
 
 func main() {
 	flag.Parse()
-	stocks := make(map[string]StockInfo)
+	stocks := []StockInfo{}
 	ch := make(chan StockInfo)
 
 	if len(inputFile) > 0 {
@@ -95,31 +79,36 @@ func main() {
 	}
 
 	for _, sym := range inputSymbols {
+		sym = strings.ToUpper(sym)
+		if sym == "BTC" {
+			sym = "BTCUSD=X"
+		}
 		go fetch(sym, ch)
 	}
 
 	for range inputSymbols {
 		info := <-ch
-		stocks[info.symbol] = info
+		stocks = append(stocks, info)
 	}
 	fmt.Println("")
 	printStocks(stocks)
 	fmt.Println("")
 }
 
-func printStocks(stocks map[string]StockInfo) {
+func printStocks(stocks StockInfoSlice) {
 	const headerFmt = "%v\t%v\t%v\t\n"
 	const rowFmt = "%s\t%.2f\t%s%.2f%%%s\t\n"
 	const colorEnd = "\033[0m"
 	tw := new(tabwriter.Writer).Init(os.Stdout, 0, 8, 2, ' ', 0)
 	fmt.Fprintf(tw, headerFmt, "Symbol", "Price ($)", "Change today (%)")
 	fmt.Fprintf(tw, headerFmt, "------", "---------", "----------------")
-	for sym, info := range stocks {
+	sort.Stable(stocks)
+	for _, info := range stocks {
 		colorStart := "\033[32m+"
 		if info.changePerc < 0.0 {
 			colorStart = "\033[31m"
 		}
-		fmt.Fprintf(tw, rowFmt, sym, info.price, colorStart, info.changePerc, colorEnd)
+		fmt.Fprintf(tw, rowFmt, info.symbol, info.price, colorStart, info.changePerc, colorEnd)
 	}
 	tw.Flush()
 }
@@ -149,7 +138,7 @@ func fetch(sym string, ch chan<- StockInfo) {
 	// fmt.Println(string(contents))
 
 	decoder := json.NewDecoder(resp.Body)
-	var data JsonResp
+	var data providers.JsonResp
 	err = decoder.Decode(&data)
 
 	if err != nil {
