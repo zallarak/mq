@@ -57,28 +57,38 @@ var inputFile string
 var verboseFlag bool
 
 func main() {
+    // input: slice of symbols and file names.
+    input := os.Args[1:]
+
 	flag.Parse()
 	stocks := []StockInfo{}
+    var s []string
 	ch := make(chan StockInfo)
 
-	if len(inputFile) > 0 {
-		f, err := os.Open(inputFile)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "mq: Usage of %s:\n", os.Args[0])
-			flag.PrintDefaults()
-			return
-		}
-		appendSymbolsFromFile(f, &inputSymbols)
-		f.Close()
-	}
-
-	if len(inputSymbols) == 0 {
-		fmt.Fprintf(os.Stderr, "mq: Usage of %s:\n", os.Args[0])
+	if len(input) == 0 {
+        // TODO
+		fmt.Printf("mq: Usage of %s:\n", os.Args[0])
 		flag.PrintDefaults()
 		return
 	}
 
-	for _, sym := range inputSymbols {
+
+    for _, item := range input {
+        if _, err := os.Stat(item); err == nil {
+            f, err := os.Open(item)
+            if err != nil {
+                fmt.Fprintf(os.Stderr, "mq: Unable to open file:  %s\n", item)
+                return
+            }
+            appendSymbolsFromFile(f, &s)
+            f.Close()
+        } else {
+		    s = append(s, item)
+        }
+    }
+
+
+	for _, sym := range s {
 		sym = strings.ToUpper(sym)
 		if sym == "BTC" {
 			sym = "BTCUSD=X"
@@ -86,7 +96,7 @@ func main() {
 		go fetch(sym, ch)
 	}
 
-	for range inputSymbols {
+	for range s {
 		info := <-ch
 		stocks = append(stocks, info)
 	}
@@ -155,7 +165,7 @@ func fetch(sym string, ch chan<- StockInfo) {
 		symbol:     sym}
 }
 
-func appendSymbolsFromFile(f *os.File, syms *symbols) {
+func appendSymbolsFromFile(f *os.File, syms *[]string) {
 	input := bufio.NewScanner(f)
 	for input.Scan() {
 		*syms = append(*syms, input.Text())
