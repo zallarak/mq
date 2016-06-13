@@ -12,7 +12,7 @@ import (
 	"strings"
 	"text/tabwriter"
 
-	"github.com/zallarak/mq/providers"
+	"./providers"
 )
 
 type symbols []string
